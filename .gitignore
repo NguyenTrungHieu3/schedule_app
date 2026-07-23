@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Bí mật — copy .env.example thành .env.local rồi tự điền
+.env.local
+.env
+
+# Công cụ/cache local (Claude Code, code index, design lint) — không phải mã nguồn app
+.claude/
+.codegraph/
+.impeccable/
