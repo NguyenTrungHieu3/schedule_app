@@ -59,14 +59,19 @@ function buildQuestion(word: VocabWord, pool: VocabWord[], direction: QuizDirect
 
 // pool: từ dùng làm nguồn nhiễu cho đáp án — mặc định là chính words, nhưng
 // khi words quá ít (vd luyện lại vài từ sai) truyền thêm allWords để đủ 4 lựa chọn.
-export function buildQuizQuestions(words: VocabWord[], allWords: VocabWord[] = words): QuizQuestion[] {
+// directions: chiều câu hỏi cần sinh — mặc định cả 2 (giữ hành vi cũ).
+export function buildQuizQuestions(
+  words: VocabWord[],
+  allWords: VocabWord[] = words,
+  directions: QuizDirection[] = ['jp-vi', 'vi-jp'],
+): QuizQuestion[] {
   const pool = allWords.length >= CHOICE_COUNT ? allWords : words;
   const questions: QuizQuestion[] = [];
   for (const word of words) {
-    const jpToVi = buildQuestion(word, pool, 'jp-vi');
-    const viToJp = buildQuestion(word, pool, 'vi-jp');
-    if (jpToVi) questions.push(jpToVi);
-    if (viToJp) questions.push(viToJp);
+    for (const direction of directions) {
+      const q = buildQuestion(word, pool, direction);
+      if (q) questions.push(q);
+    }
   }
   return shuffle(questions);
 }

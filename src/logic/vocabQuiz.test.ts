@@ -51,4 +51,16 @@ describe('buildQuizQuestions', () => {
     const results = Array.from({ length: 20 }, () => buildQuizQuestions(WORDS).map((q) => q.prompt + q.direction).join(','));
     expect(new Set(results).size).toBeGreaterThan(1);
   });
+
+  it('chỉ chọn 1 chiều (jp-vi) → chỉ sinh câu chiều đó, đúng số lượng bằng số từ', () => {
+    const questions = buildQuizQuestions(WORDS, WORDS, ['jp-vi']);
+    expect(questions).toHaveLength(WORDS.length);
+    expect(questions.every((q) => q.direction === 'jp-vi')).toBe(true);
+  });
+
+  it('chỉ chọn 1 chiều (vi-jp) → chỉ sinh câu chiều đó', () => {
+    const questions = buildQuizQuestions(WORDS, WORDS, ['vi-jp']);
+    expect(questions).toHaveLength(WORDS.length);
+    expect(questions.every((q) => q.direction === 'vi-jp')).toBe(true);
+  });
 });

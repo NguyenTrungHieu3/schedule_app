@@ -8,13 +8,25 @@ import { useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { CaretLeft, CheckCircle, ClipboardText, NotePencil, XCircle } from '@phosphor-icons/react';
 import { n5Lessons, type VocabWord } from '../data/n5Vocab';
-import { buildQuizQuestions, type QuizQuestion } from '../logic/vocabQuiz';
+import { buildQuizQuestions, type QuizDirection, type QuizQuestion } from '../logic/vocabQuiz';
 import { addWrongWords } from '../logic/wrongWords';
 
 const ALL_WORDS: VocabWord[] = n5Lessons.flatMap((l) => l.words);
 
 function questionToVocabWord(q: QuizQuestion): VocabWord {
   return q.direction === 'jp-vi' ? { term: q.prompt, meaning: q.correctAnswer } : { term: q.correctAnswer, meaning: q.prompt };
+}
+
+type DirectionMode = QuizDirection | 'both';
+
+const DIRECTION_OPTIONS: { mode: DirectionMode; label: string }[] = [
+  { mode: 'jp-vi', label: 'Nhật → Việt' },
+  { mode: 'vi-jp', label: 'Việt → Nhật' },
+  { mode: 'both', label: 'Cả 2 chiều' },
+];
+
+function directionsFor(mode: DirectionMode): QuizDirection[] {
+  return mode === 'both' ? ['jp-vi', 'vi-jp'] : [mode];
 }
 
 type Step = 'pick' | 'quiz' | 'result';
@@ -25,6 +37,7 @@ export default function VocabQuizPage() {
 
   const [step, setStep] = useState<Step>(practiceWords ? 'quiz' : 'pick');
   const [selectedLessonIds, setSelectedLessonIds] = useState<Set<number>>(new Set());
+  const [directionMode, setDirectionMode] = useState<DirectionMode>('both');
   const [questions, setQuestions] = useState<QuizQuestion[]>(() => (practiceWords ? buildQuizQuestions(practiceWords, ALL_WORDS) : []));
   const [index, setIndex] = useState(0);
   const [chosen, setChosen] = useState<string | null>(null);
@@ -50,7 +63,7 @@ export default function VocabQuizPage() {
 
   function startFromSelection() {
     const words = n5Lessons.filter((l) => selectedLessonIds.has(l.id)).flatMap((l) => l.words);
-    setQuestions(buildQuizQuestions(words));
+    setQuestions(buildQuizQuestions(words, words, directionsFor(directionMode)));
     setIndex(0);
     setChosen(null);
     setWrong([]);
@@ -80,6 +93,7 @@ export default function VocabQuizPage() {
   function restart() {
     setStep('pick');
     setSelectedLessonIds(new Set());
+    setDirectionMode('both');
     setQuestions([]);
     setWrong([]);
   }
@@ -94,7 +108,22 @@ export default function VocabQuizPage() {
           <ClipboardText size={26} weight="fill" className="text-primary" />
           Kiểm tra từ vựng
         </h1>
-        <p className="mb-6 font-semibold text-slate-500">Chọn các bài cần ôn, sau đó làm trắc nghiệm 2 chiều Nhật ↔ Việt.</p>
+        <p className="mb-6 font-semibold text-slate-500">Chọn các bài cần ôn và chiều câu hỏi, sau đó làm trắc nghiệm.</p>
+
+        <div className="mb-4 inline-flex rounded-2xl border-2 border-slate-200 bg-white p-1">
+          {DIRECTION_OPTIONS.map(({ mode, label }) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setDirectionMode(mode)}
+              className={`rounded-xl px-3.5 py-1.5 text-sm font-bold transition-colors ${
+                directionMode === mode ? 'bg-primary text-white' : 'text-slate-500 hover:bg-slate-100'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
 
         <div className="mb-4 flex items-center justify-between">
           <button type="button" onClick={toggleAll} className="text-sm font-bold text-primary hover:underline">
@@ -124,7 +153,8 @@ export default function VocabQuizPage() {
 
         <div className="card sticky bottom-4 mt-6 flex items-center justify-between gap-3 p-4">
           <p className="font-semibold text-slate-600">
-            Đã chọn <span className="font-extrabold text-primary">{selectedWordCount}</span> từ ({selectedWordCount * 2} câu hỏi)
+            Đã chọn <span className="font-extrabold text-primary">{selectedWordCount}</span> từ (
+            {selectedWordCount * directionsFor(directionMode).length} câu hỏi)
           </p>
           <button
             type="button"
