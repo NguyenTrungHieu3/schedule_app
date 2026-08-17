@@ -6,6 +6,11 @@ repetition, Pomodoro, hộp phần thưởng ngẫu nhiên, và chuỗi 3 mức.
 trên Supabase (cloud-only) để đồng bộ giữa nhiều máy; cài được như app điện
 thoại (PWA).
 
+Ngoài phần "kế hoạch học" gốc, app đang mở rộng thành một **nền tảng học**
+tiếng Nhật/Anh (flashcard/SRS, quiz, đọc, nói, gia sư AI...) — xem mục
+[Học — flashcard/SRS](#học--flashcardsrs) và
+[docs/hoc-tap/](./docs/hoc-tap/) để biết lộ trình đầy đủ.
+
 > 📖 **Muốn biết cách dùng app?** Đọc [HUONG-DAN-SU-DUNG.md](./HUONG-DAN-SU-DUNG.md).
 > File README này dành cho người sửa code.
 
@@ -51,14 +56,20 @@ src/
 │   └── *.test.ts       # unit test — chạy bằng `npm test`
 │
 ├── store/
-│   ├── appStore.ts     # Zustand store trung tâm — mọi ghi dữ liệu đi qua đây
-│   ├── timerStore.ts   # Pomodoro (endTimestamp, LUÔN local — xem TRANSIENT_KEYS)
-│   └── clockStore.ts   # đồng hồ ngày logic — app tự sang ngày mới lúc 04:00
+│   ├── appStore.ts       # Zustand store trung tâm (Chăm) — mọi ghi dữ liệu đi qua đây
+│   ├── timerStore.ts     # Pomodoro (endTimestamp, LUÔN local — xem TRANSIENT_KEYS)
+│   ├── clockStore.ts     # đồng hồ ngày logic — app tự sang ngày mới lúc 04:00
+│   └── learningStore.ts  # store cho khu "Học" (flashcard/SRS) — xem mục Học bên dưới
 │
-├── data/seed.ts        # lịch tuần mặc định + 45 tờ giấy thưởng + câu lừa não (§5)
+├── data/
+│   ├── seed.ts            # lịch tuần mặc định + 45 tờ giấy thưởng + câu lừa não (§5)
+│   ├── learningTypes.ts   # kiểu dữ liệu bảng quan hệ (vocab/kanji/sentences/decks)
+│   └── learningClient.ts  # truy vấn Supabase cho khu "Học" (tách khỏi kv)
+│
 ├── components/         # AuthGate (đăng nhập magic link), ErrorBoundary, Layout,
 │                       # TimerOverlay, RewardModal, Confetti
-├── pages/              # 7 màn hình (Today/Week/Review/ErrorLog/Stats/Sunday/Settings)
+├── pages/              # 7 màn Chăm (Today/Week/Review/ErrorLog/Stats/Sunday/Settings)
+│                       # + Học (HocPage, FlashcardReviewPage)
 └── ui/labels.ts        # nhãn + màu môn/tier dùng chung
 ```
 
@@ -133,7 +144,39 @@ Screen; iOS Safari: nút Share → Add to Home Screen). App cloud-only nên **v�
 cần mạng** để thấy dữ liệu — service worker chỉ cache khung giao diện, không cache
 dữ liệu học.
 
+## Học — flashcard/SRS
+
+Khu vực `/hoc` mở rộng Chăm thành nền tảng học tiếng Nhật (rồi tiếng Anh) —
+xem kế hoạch đầy đủ (7 module, lộ trình M0–M6) trong lịch sử trò chuyện đã lưu
+plan, hoặc tóm tắt dưới đây.
+
+- **Dữ liệu:** bảng quan hệ riêng (`vocab`, `kanji`, `sentences`, `decks`,
+  `deck_items`, `card_reviews`) trong CÙNG project Supabase với `kv` — xem
+  [`supabase/migrations/0002_learning.sql`](./supabase/migrations/0002_learning.sql).
+  Nội dung hệ thống (vocab/kanji/sentences/deck curated) đọc công khai cho mọi
+  user đã đăng nhập; `card_reviews` (tiến độ SRS cá nhân) khoá theo `auth.uid()`
+  giống `kv`.
+- **SRS thẻ học:** `src/logic/cardReview.ts` — tái dùng `INTERVALS`/`QUEUE_DAILY_CAP`
+  từ `logic/srs.ts` (Ôn tập của Chăm) làm nguồn chân lý duy nhất cho lịch ôn.
+- **Tích hợp ngược vào Chăm:** ôn xong hết thẻ đến hạn trong ngày → tự tick
+  block lịch tuần `kind: 'srs'` của hôm nay (nếu có đặt) + cấp 1 lượt bốc hộp
+  nhỏ (`small:bonus:hoc:<date>`) — xem `creditChamOnSessionFinish()` trong
+  `store/learningStore.ts`.
+- **Nạp dữ liệu N5 mẫu:** `npm run seed:learning` (cần `SUPABASE_URL` +
+  `SUPABASE_SERVICE_ROLE_KEY` — service role, KHÔNG phải anon key). Script tự
+  bỏ qua nếu deck đã tồn tại (an toàn chạy lại). Mở rộng lên đầy đủ N5–N1 và
+  giấy phép nội dung: xem [`docs/hoc-tap/nguon-du-lieu.md`](./docs/hoc-tap/nguon-du-lieu.md).
+- **Thiết kế màn mới bằng Stitch:** prompt sẵn cho từng màn (M1–M6) trong
+  [`docs/hoc-tap/stitch-prompts.md`](./docs/hoc-tap/stitch-prompts.md) — dán
+  đúng bối cảnh design token để giao diện mới khớp phong cách Chăm.
+
 ## TODO gợi ý cho chủ app (tự làm dần)
 
 - [ ] Migrate schema khi đổi cấu trúc: xem TODO trong `storage/repository.ts` và `storage/init.ts`.
 - [ ] Local-first (đọc/ghi offline rồi đồng bộ nền) nếu muốn dùng được khi mất mạng.
+- [ ] M2 — Quiz + luyện đề JLPT-style (ngân hàng câu hỏi, chấm điểm, thống kê điểm yếu).
+- [ ] M3 — Luyện đọc + ngữ pháp theo lộ trình cấp độ, tra từ inline.
+- [ ] M4 — Luyện nói/phát âm (Azure Pronunciation Assessment, chấm theo âm vị).
+- [ ] M5 — Gia sư AI hội thoại + luyện viết (chấm & sửa lỗi).
+- [ ] M6 — Sổ tay cá nhân + tự tạo bộ thẻ.
+- [ ] Nhân bản engine Học sang tiếng Anh sau khi các module tiếng Nhật ổn định.

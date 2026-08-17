@@ -30,7 +30,8 @@ export type StorageKey =
   | 'weeklyReviews'
   | 'settings'
   | 'timerState'
-  | 'pendingRewards';
+  | 'pendingRewards'
+  | 'vocabWrongWords';
 
 export interface Repository {
   get<T>(key: StorageKey): Promise<T | null>;
